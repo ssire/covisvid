@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <window><title>COVISVID 19</title></window>
+  <script src="libs/papaparse.min.js"></script>
+<!-- Load c3.css -->
+<link href="libs/c3-0.7.20/c3.min.css" rel="stylesheet">
+<!-- Load d3.js and c3.js -->
+<script src="libs/d3-5.16/d3.min.js"></script>
+<!-- <script src="d3-5.16/d3.v6.min.js"></script> -->
+<script src="libs/c3-0.7.20/c3.min.js"></script>  
+  <script>
+var GLOBAL = new Array(2);
+var CHART = new Array(2);
+var XAXIS = {
+          x: {
+              type: 'timeseries',
+              tick: {
+                  format: '%Y-%m-%d'
+              }
+          }
+      };
+var DOCS;
+
+function handleFiles (file, region) {
+    Papa.parse(file, {
+    	worker: true,
+    	// step: function(row) {
+//         alert("Row:", row.data);
+//       },
+    	complete: function(results) {
+    		plot(results.data, region);
+    	}
+    });
+}
+function replot (i, region) {
+  if (CHART[i] !== undefined) {
+    CHART[i].destroy();
+  }
+  if (GLOBAL[i] !== undefined) {
+    switch (i) {
+      case 0 : replot1(region);
+               break;
+      case 1 : replot2(region); 
+               break;
+     }
+  }
+}
+function replot1 (region) {
+  var target = GLOBAL[0].filter(function(row, i){return i == 0 || (row[0] == region && row[1] == '0')});
+  var plot = d3.transpose(target);
+  CHART[0] = c3.generate({
+      bindto: '#graphique1',
+      data: {
+        x: 'jour',
+        columns: [
+          plot[2],
+          plot[3],
+          plot[4],
+          plot[5],
+          plot[6]
+        ]
+      },
+      axis: XAXIS
+  });
+};
+function replot2 (region) {
+  var target = GLOBAL[1].filter(function(row, i){return i == 0 || row[0] == region});
+  var plot = d3.transpose(target);
+  CHART[1] = c3.generate({
+      bindto: '#graphique2',
+      data: {
+        x: 'jour',
+        columns: [
+          plot[1],
+          plot[2],
+          plot[3],
+          plot[5],
+          plot[4]
+        ]
+      },
+      axis: XAXIS
+  });
+};
+function handleRegion ( val ) {
+  replot(0, val);
+  replot(1, val);
+};
+function setFilename ( n, name ) {
+  var node = document.getElementById(n);
+  node.textContent = name;
+  node = document.getElementById(n + 'b');
+  node.setAttribute("style", "visibility:visible");
+};
+function transferComplete(evt) {
+  DOCS = JSON.parse(evt.target.response.match(/({"@context".*})/)[1]);
+  setFilename('fichier1', DOCS.distribution[0].name);
+  setFilename('fichier2', DOCS.distribution[1].name);
+};
+function transferError(evt) {
+  alert('Erreur, pas pu charger !')
+};
+function handleRefresh() {
+  var oReq;
+  if (DOCS) {
+    alert('Déjà chargé !');
+  } else {
+    oReq = new XMLHttpRequest();
+    oReq.addEventListener("load", transferComplete, false);
+    oReq.addEventListener("error", transferError, false);
+    oReq.open("GET", "https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/", true);
+    oReq.send();
+  }
+}
+function plot (i, data, region) {
+  GLOBAL[i] = data.filter(function(row){return row.length == 7 - i}); // 7 columns for 0 and 6 for 1
+  switch (i) {
+    case 0 : replot1(region); 
+             break;
+    case 1 : replot2(region); 
+             break;
+   }  
+}
+function handleLoad( i, name ) {
+  Papa.parse(DOCS.distribution[i].contentUrl, {
+    download: true,
+    complete: function(results) {
+      var node = document.getElementById(name);
+      node.setAttribute("style", "visibility:hidden");
+      plot(i, results.data, '85');
+    }
+  });
+};
+  </script>
+
+</head>
+<body onload="javascript:parseFile()">
+  <h2>Source</h2>  
+  <p><a href="https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/">Données hospitalières relatives à l'épidémie de COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh()">Cliquez ici</button> pour récupérer la dernière version</p>
+  <p>Departement: <input type="number" id="region" onchange="javascript:handleRegion(this.value)" value="85"/></p>
+  
+  <h2>Graphique 1</h2>
+  <p>Fichier : <i><span id="fichier1">non chargé</span></i> <button id="fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(0, 'fichier1b')">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
+  <div id="graphique1"></div>
+
+  <h2>Graphique 2</h2>
+  <p>Fichier : <i><span id="fichier2">non chargé</span></i> <button id="fichier2b" style="visibility:hidden"onclick="javascript:handleLoad(1, 'fichier2b')">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
+  <div id="graphique2"></div>
+</body>
+</html>
