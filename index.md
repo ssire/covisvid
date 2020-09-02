@@ -1,3 +1,3 @@
-# COVISVID 19
+# Données hospitalières
 
 Ouvrir la [page](covisvid.html)
