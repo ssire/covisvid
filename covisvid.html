@@ -11,6 +11,7 @@
 <!-- <script src="d3-5.16/d3.v6.min.js"></script> -->
 <script src="libs/c3-0.7.20/c3.min.js"></script>  
   <script>
+    
 var DOCS = new Array(2);
 var GLOBAL = new Array(2);
 var CHART = new Array(2);
@@ -23,6 +24,24 @@ var XAXIS = {
           }
       };
 
+
+function lisse ( a, k ) {
+  var total ;
+  var b = new Array(a.length);
+  b[0] = a[0];
+  for (var i = 1; i < k; i++) {
+    b[i] = a[i]; // non lissé
+  }
+  for (var i = k; i < a.length; i++) {
+    total = 0;
+    for (var j = 0; j < k; j++) {
+      total += parseInt(a[i - j]);
+    }
+    b[i] = total / k;
+  }
+  return b;
+};
+
 // Chargement d'un fichier depuis le disque local
 // function handleFiles (file, region) {
 //     Papa.parse(file, {
@@ -34,7 +53,7 @@ var XAXIS = {
 // }
 
 // Extraction initiale + Tracé initial
-function plot (num, i, data, region, age) {
+function plot (num, i, data, region, age, fenetre, delta) {
   if (GLOBAL[num] == undefined) {
     GLOBAL[num] = new Array(2);
   }
@@ -49,55 +68,121 @@ function plot (num, i, data, region, age) {
       switch (i) {
         case 0 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[1] == '0')}, [2, 3, 4, 5, 6]);
                  break;
-        case 1 : draw(num, 1, function(row, i){return i == 0 || row[0] == region}, [1, 2, 3, 5, 4]);
+        case 1 : draw(num, 1, function(row, i){return i == 0 || row[0] == region}, [1, '2L', '3L', '5L', '4L']);
                  break;
      }
      break;
-   case 1 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[4] == age)}, [1, 2, 3]);    
+   case 1 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[4] == age)}, [1, '2L', '3L'], fenetre);
+            combine(delta);    
      break;
    }
 }
 
 // Nouveau tracé après changement de région)
-function replot (num, i, region, age) {
+function replot (num, i, region, age, fenetre, delta) {
   if (CHART[num] && CHART[num][i] !== undefined) {
-    CHART[num][i].destroy();
+    CHART[num][i].plot.destroy();
   }
   if (GLOBAL[num] && GLOBAL[num][i] !== undefined) {
     switch (num) {
       case 0 : 
         switch (i) {
-          case 0 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[1] == '0')}, [2, 3, 4, 5, 6]);
+          case 0 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[1] == '0')}, [2, 3, 4, 5, 6], fenetre);
                    break;
-          case 1 : draw(num, 1, function(row, i){return i == 0 || row[0] == region}, [1, 2, 3, 5, 4]);
+          case 1 : draw(num, 1, function(row, i){return i == 0 || row[0] == region}, [1, '2L', '3L', '5L', '4L'], fenetre);
                    break;
          }
          break;
-       case 1 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[4] == age)}, [1, 2, 3]);
+       case 1 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[4] == age)}, [1, '2L', '3L'], fenetre);
+                combine(delta);
          break
      }
   }
 }
 
 // Dessin d'un graphe
-function draw (num, i, f, columns) {
+// comprendre : pourquoi le lissage enleve des points à droite ?
+function draw (num, i, f, columns, fenetre) {
+  var l = fenetre !== undefined ? fenetre : 1;
   var target = GLOBAL[num][i].filter(f);
   var plot = d3.transpose(target);
   var cols = new Array(columns.length)
   for (j = 0; j < columns.length; j++) {
-    cols[j] = plot[columns[j]];
+    var k = columns[j];
+    if (typeof k == "string") {
+      k = k.replace('L', ''); 
+      cols[j] = lisse(plot[k], l);
+      window.console.log('lisse(' + l + ') ' + j + ' = ' + plot[k].join('-') + ' into ' + cols[j].join('-'));
+    } else {
+      cols[j] = plot[k];
+      window.console.log('copie ' + j + ' = ' + cols[j].join('-'));
+    }    
   }
   if (CHART[num] == undefined) {
     CHART[num] = new Array(2);
   }
-  CHART[num][i] = c3.generate({
-      bindto: '#graphique_' + num + '_' + (i + 1),
-      data: {
-        x: 'jour',
-        columns: cols
-      },
-      axis: XAXIS
-  });  
+  CHART[num][i] = { 
+    'plot' : c3.generate({
+                bindto: '#graphique_' + num + '_' + (i + 1),
+                data: {
+                  x: 'jour',
+                  columns: cols
+                },
+                axis: XAXIS
+              }),
+    'columns' : cols
+  }  
+}
+
+// Dessin d'un graphe
+function combine (delta) {
+  // attention a/source (Serie A) may have more dates than insource (Serie C) : always more ?
+  // prendre refdate.length comme reference
+  var a = CHART[1][0].columns[1]; // P (Serie B)
+  var b = CHART[1][0].columns[2]; // T (Serie B)
+  var refdate = CHART[1][0].columns[0]; // date (Serie B)
+  var indate = CHART[0][1].columns[0]; // date (Serie A) extraire seulement les dates dispo dans Serie A
+  var source = CHART[0][1].columns[1]; // incid_hosp (Serie A)
+  var c = new Array(refdate.length);
+  c[0] = a[0];
+  for (var j = 0; j < refdate.length; j++ ) {
+    var pos = indate.indexOf(refdate[j]);
+    if (pos != -1) {
+      c[j] = source[pos];
+    } else {
+      c[j] = undefined;
+      window.console.log('Missing ' + date[j]);
+    }
+  }
+  var cols = new Array(3);
+  cols[0] = CHART[1][0].columns[0]; // date axis
+  cols[1] = new Array(refdate.length); // P / T
+  cols[1][0] = 'Taux ' + a[0] + '/' + b[0];
+  for (j = 1; j < refdate.length; j++) {
+    cols[1][j] = a[j] / b[j];
+  }
+  cols[2] = new Array(a.length); // incid_hosp / P
+  cols[2][0] = 'Taux ' + c[0] + '/' + a[0] + ' (delta ' + delta + ')';
+  for (var j = 1 + delta; j < a.length; j++) {
+    window.console.log('Extract ' + (j - delta));
+    cols[2][j] = c[j] / a[j - delta];
+  }
+  // copier les valeur manquante avec la première valeur disponible (delta + 1)
+  for (var j = 1; j <= delta; j++) {
+    cols[2][j] = cols[2][delta + 1]
+  };
+  window.console.log('combine a  = ' + cols[1].join('-'));  
+  window.console.log('combine c  = ' + cols[2].join('-'));  
+  CHART[1][1] = { 
+    'plot' : c3.generate({
+                bindto: '#graphique_1_2',
+                data: {
+                  x: 'jour',
+                  columns: cols
+                },
+                axis: XAXIS
+              })
+  }  
 }
 
 function setFilename ( n, name ) {
@@ -141,22 +226,27 @@ function handleLoad( num, i, name ) {
     download: true,
     complete: function(results) {
       var node = document.getElementById(name);
+      var region = document.getElementById('region').value;
+      var age = document.getElementById('age').value;
+      var lisse = parseInt(document.getElementById('lisse').value);
+      var delta = parseInt(document.getElementById('delta').value);
       node.setAttribute("style", "visibility:hidden");
-      plot(num, i, results.data, '85', '0');
+      plot(num, i, results.data, region, age, lisse, delta);
     }
   });
 };
 
 // Changement d'un paramètre d'affichage
-// TODO: renommer, ajouter Age si serie B
 function handleParam () {
   var region = document.getElementById('region').value;
   var age = document.getElementById('age').value;
+  var lisse = parseInt(document.getElementById('lisse').value);
+  var delta = parseInt(document.getElementById('delta').value);
   // Serie A
-  replot(0, 0, region, age);
-  replot(0, 1, region, age);
+  replot(0, 0, region, age, lisse, delta);
+  replot(0, 1, region, age, lisse, delta);
   // Serie B
-  replot(1, 0, region, age);
+  replot(1, 0, region, age, lisse, delta);
 };
   </script>
 
@@ -171,6 +261,8 @@ function handleParam () {
   <p>
     Departement (Série A, B): <input type="number" id="region" onchange="javascript:handleParam()" value="85"/>
     Age (Série B): <input type="number" id="age" onchange="javascript:handleParam()" value="0"/>
+    Lissage (Série B): <input type="number" id="lisse" onchange="javascript:handleParam()" value="1"/>
+    Delta (Série B): <input type="number" id="delta" onchange="javascript:handleParam()" value="0"/>
   </p>
   
   <h2>Graphique 1 (Série A)</h2>
@@ -185,6 +277,8 @@ function handleParam () {
   <p>Fichier : <i><span id="1_fichier1">non chargé</span></i> <button id="1_fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(1, 0, '1_fichier1b')">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
   <div id="graphique_1_1"></div>
 
+  <h2>Graphique 4 (Série B)</h2>
+  <div id="graphique_1_2"></div>
 
 </body>
 </html>
