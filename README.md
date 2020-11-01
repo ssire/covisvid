@@ -7,6 +7,7 @@ Visualisation graphique (avec C3.js et d3.js des jeux de données :
 
 Clonez et ouvrez covisvid.html ou bien [accès en ligne](https://ssire.github.io/covisvid/).
 
-Autres examples intéressants :
+Autres sources/examples intéressants :
 
 * https://public.tableau.com/profile/miguel.angel.puente#!/vizhome/Francesarscov2dashboard/HospitalisationsPositifs
+* https://www.euromomo.eu/graphs-and-maps

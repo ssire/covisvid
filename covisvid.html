@@ -135,7 +135,7 @@ function draw (num, i, f, columns, fenetre) {
     }    
   }
   if (CHART[num] == undefined) {
-    CHART[num] = new Array(2);
+    CHART[num] = new Array(3);
   }
   CHART[num][i] = { 
     'plot' : c3.generate({
@@ -144,10 +144,10 @@ function draw (num, i, f, columns, fenetre) {
                   x: 'jour',
                   columns: cols
                 },
-                axis: XAXIS
+                axis : XAXIS
               }),
     'columns' : cols
-  }  
+  }
 }
 
 // Dessin d'un graphe
@@ -171,25 +171,15 @@ function combine (delta) {
       window.console.log('Missing ' + date[j]);
     }
   }
-  var cols = new Array(3);
+  // Chart P/T
+  var cols = new Array(2);
   cols[0] = CHART[1][0].columns[0]; // date axis
   cols[1] = new Array(refdate.length); // P / T
   cols[1][0] = 'Taux ' + a[0] + '/' + b[0];
   for (j = 1; j < refdate.length; j++) {
-    cols[1][j] = a[j] / b[j];
+    cols[1][j] = Math.floor( (a[j] / b[j]) * 10000 ) / 100;
   }
-  cols[2] = new Array(a.length); // incid_hosp / P
-  cols[2][0] = 'Taux ' + c[0] + '/' + a[0] + ' (delta ' + delta + ')';
-  for (var j = 1 + delta; j < a.length; j++) {
-    window.console.log('Extract ' + (j - delta));
-    cols[2][j] = c[j] / a[j - delta];
-  }
-  // copier les valeur manquante avec la première valeur disponible (delta + 1)
-  for (var j = 1; j <= delta; j++) {
-    cols[2][j] = cols[2][delta + 1]
-  };
   window.console.log('combine a  = ' + cols[1].join('-'));  
-  window.console.log('combine c  = ' + cols[2].join('-'));  
   CHART[1][1] = { 
     'plot' : c3.generate({
                 bindto: '#graphique_1_2',
@@ -198,9 +188,35 @@ function combine (delta) {
                   columns: cols
                 },
                 axis: XAXIS
-              })
+              }),
+    'columns' : cols
   }  
-  // extension de 
+  // Chart Taux incid. / P
+  var cols2 = new Array(2);
+  cols2[0] = CHART[1][0].columns[0]; // date axis
+  cols2[1] = new Array(a.length); // incid_hosp / P
+  cols2[1][0] = 'Taux ' + c[0] + '/' + a[0] + ' (delta ' + delta + ')';
+  for (var j = 1 + delta; j < a.length; j++) {
+    //window.console.log('Extract ' + (j - delta));
+    cols2[1][j] = Math.floor( (c[j] / a[j - delta]) * 10000 ) / 100;
+  }
+  // copier les valeur manquante avec la première valeur disponible (delta + 1)
+  for (var j = 1; j <= delta; j++) {
+    cols2[1][j] = cols2[1][delta + 1];
+  };
+  window.console.log('combine c  = ' + cols2[1].join('-'));    
+  CHART[1][2] = { 
+    'plot' : c3.generate({
+                bindto: '#graphique_1_3',
+                data: {
+                  x: 'jour',
+                  columns: cols2
+                },
+                axis: XAXIS
+              }),
+    'columns' : cols
+  }  
+  // extension de graphique 3
   d = glisse_somme(a, 7);
   d[0] = "SOMME(P)";
   CHART[1][0].plot.load({columns: [d]});
@@ -214,12 +230,17 @@ function setFilename ( n, name ) {
 };
 
 // Réception du sommaire d'une Série
-function transferComplete(evt, num) {
+function transferComplete(evt, num, index) {
   DOCS[num] = JSON.parse(evt.target.response.match(/({"@context".*})/)[1]);
-  // i + num because for second data set first file index is 1
-  setFilename(num + '_fichier1', DOCS[num].distribution[0 + num].name);
+  // premier fichier 
+  // Serie A : donnees-hospitalieres-covid19-{date}
+  // Serie B : ?
+  setFilename(num + '_fichier1', DOCS[num].distribution[index].name);
   if (num == 0) {
-    setFilename(num + '_fichier2', DOCS[num].distribution[1].name);
+     // deuxieme fichier 
+    // Serie A : donnees-hospitalieres-nouveaux-covid19-{date}
+    // Serie B : neant
+    setFilename(num + '_fichier2', DOCS[num].distribution[index + 1].name);
   }
 };
 
@@ -228,22 +249,22 @@ function transferError(evt) {
 };
 
 // Chargement d'une Série
-function handleRefresh(num, url) {
+function handleRefresh(num, url, index) {
   var oReq;
   if (DOCS[num] !== undefined) {
     alert('Déjà chargé !');
   } else {
     oReq = new XMLHttpRequest();
-    oReq.addEventListener("load", function (evt) { transferComplete(evt, num) }, false);
+    oReq.addEventListener("load", function (evt) { transferComplete(evt, num, index) }, false);
     oReq.addEventListener("error", transferError, false);
     oReq.open("GET", url, true);
     oReq.send();
   }
 }
 // Chargement d'un fichier CVS dans une Série + Extraction initiale + Tracé initial
-function handleLoad( num, i, name ) {
+function handleLoad( num, i, name, index ) {
   // i + num because for second data set first file index is 1
-  Papa.parse(DOCS[num].distribution[i + num].contentUrl, {
+  Papa.parse(DOCS[num].distribution[i + index].contentUrl, {
     download: true,
     complete: function(results) {
       var node = document.getElementById(name);
@@ -275,9 +296,9 @@ function handleParam () {
 <body>
   <h2>Source</h2>  
 
-  <p>Série A : <a href="https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/">Données hospitalières relatives à l'épidémie de COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh(0, 'https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/')">Cliquez ici</button> pour récupérer la dernière version</p>
+  <p>Série A : <a href="https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/">Données hospitalières relatives à l'épidémie de COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh(0, 'https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/', 0)">Cliquez ici</button> pour récupérer la dernière version</p>
 
-  <p>Série B : <a href="https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19/">Données relatives aux résultats des tests virologiques COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh(1, 'https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19/')">Cliquez ici</button> pour récupérer la dernière version</p>
+  <p>Série B : <a href="https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19/">Données relatives aux résultats des tests virologiques COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh(1, 'https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19/', 2)">Cliquez ici</button> pour récupérer la dernière version</p>
 
   <p>
     Departement (Série A, B): <input type="number" id="region" onchange="javascript:handleParam()" value="85"/>
@@ -287,19 +308,22 @@ function handleParam () {
   </p>
   
   <h2>Graphique 1 (Série A)</h2>
-  <p>Fichier : <i><span id="0_fichier1">non chargé</span></i> <button id="0_fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(0, 0, '0_fichier1b')">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
+  <p>Fichier : <i><span id="0_fichier1">non chargé</span></i> <button id="0_fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(0, 0, '0_fichier1b', 0)">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
   <div id="graphique_0_1"></div>
 
   <h2>Graphique 2 (Série A)</h2>
-  <p>Fichier : <i><span id="0_fichier2">non chargé</span></i> <button id="0_fichier2b" style="visibility:hidden"onclick="javascript:handleLoad(0, 1, '0_fichier2b')">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
+  <p>Fichier : <i><span id="0_fichier2">non chargé</span></i> <button id="0_fichier2b" style="visibility:hidden"onclick="javascript:handleLoad(0, 1, '0_fichier2b', 0)">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
   <div id="graphique_0_2"></div>
 
   <h2>Graphique 3 (Série B)</h2>
-  <p>Fichier : <i><span id="1_fichier1">non chargé</span></i> <button id="1_fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(1, 0, '1_fichier1b')">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
+  <p>Fichier : <i><span id="1_fichier1">non chargé</span></i> <button id="1_fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(1, 0, '1_fichier1b', 2)">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
   <div id="graphique_1_1"></div>
 
   <h2>Graphique 4 (Série B)</h2>
   <div id="graphique_1_2"></div>
+
+  <h2>Graphique 5 (Série B)</h2>
+  <div id="graphique_1_3"></div>
 
 </body>
 </html>
