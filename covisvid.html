@@ -296,7 +296,7 @@ function handleParam () {
 <body>
   <h2>Source</h2>  
 
-  <p>Série A : <a href="https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/">Données hospitalières relatives à l'épidémie de COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh(0, 'https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/', 0)">Cliquez ici</button> pour récupérer la dernière version</p>
+  <p>Série A : <a href="https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/">Données hospitalières relatives à l'épidémie de COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh(0, 'https://www.data.gouv.fr/fr/datasets/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19/', 2)">Cliquez ici</button> pour récupérer la dernière version</p>
 
   <p>Série B : <a href="https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19/">Données relatives aux résultats des tests virologiques COVID-19</a> (data.gouv.fr) => <button onclick="javascript:handleRefresh(1, 'https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19/', 2)">Cliquez ici</button> pour récupérer la dernière version</p>
 
@@ -308,11 +308,11 @@ function handleParam () {
   </p>
   
   <h2>Graphique 1 (Série A)</h2>
-  <p>Fichier : <i><span id="0_fichier1">non chargé</span></i> <button id="0_fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(0, 0, '0_fichier1b', 0)">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
+  <p>Fichier : <i><span id="0_fichier1">non chargé</span></i> <button id="0_fichier1b" style="visibility:hidden" onclick="javascript:handleLoad(0, 0, '0_fichier1b', 2)">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
   <div id="graphique_0_1"></div>
 
   <h2>Graphique 2 (Série A)</h2>
-  <p>Fichier : <i><span id="0_fichier2">non chargé</span></i> <button id="0_fichier2b" style="visibility:hidden"onclick="javascript:handleLoad(0, 1, '0_fichier2b', 0)">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
+  <p>Fichier : <i><span id="0_fichier2">non chargé</span></i> <button id="0_fichier2b" style="visibility:hidden"onclick="javascript:handleLoad(0, 1, '0_fichier2b', 2)">Charger</button> <!-- OU <input type="file" id="input" onchange="javascript:return false;handleFiles(this.files[0], '85')"> --></p>
   <div id="graphique_0_2"></div>
 
   <h2>Graphique 3 (Série B)</h2>
