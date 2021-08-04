@@ -70,19 +70,21 @@ function glisse_somme ( a, k ) {
 
 // Extraction initiale + Tracé initial
 function plot (num, i, data, region, age, fenetre, delta) {
+  var colNb;
   if (GLOBAL[num] == undefined) {
     GLOBAL[num] = new Array(2);
   }
   // TODO adjust formular to NUM=1
   if (num == 0) {
-    GLOBAL[num][i] = data.filter(function(row){return row.length == 7 - i}); // 7 columns for 0 and 6 for 1
+    colNb = i === 0 ? 10 : 6
+    GLOBAL[num][i] = data.filter(function(row){return row.length == colNb}); // 10 columns for 0 and 6 for 1
   } else {
     GLOBAL[num][i] = data;
   }
   switch (num) {
     case 0 : 
       switch (i) {
-        case 0 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[1] == '0')}, [2, 3, 4, 5, 6]);
+        case 0 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[1] == '0')}, [2, 3, 4, 8, 9]);
                  break;
         case 1 : draw(num, 1, function(row, i){return i == 0 || row[0] == region}, [1, '2L', '3L', '5L', '4L']);
                  break;
@@ -103,7 +105,7 @@ function replot (num, i, region, age, fenetre, delta) {
     switch (num) {
       case 0 : 
         switch (i) {
-          case 0 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[1] == '0')}, [2, 3, 4, 5, 6], fenetre);
+          case 0 : draw(num, 0, function(row, i){return i == 0 || (row[0] == region && row[1] == '0')}, [2, 3, 4, 8, 9], fenetre);
                    break;
           case 1 : draw(num, 1, function(row, i){return i == 0 || row[0] == region}, [1, '2L', '3L', '5L', '4L'], fenetre);
                    break;
